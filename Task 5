@@ -1,0 +1,89 @@
+import pandas as pd
+import pickle
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import classification_report
+
+# Display all columns
+pd.set_option('display.max_columns', None)
+
+# ===============================
+# 1. Load the dataset
+# ===============================
+df = pd.read_csv('./Creditcard.csv')
+
+# Basic info
+print(df.head())
+print("Shape of dataset:", df.shape)
+print(df.dtypes)
+
+# ===============================
+# 2. Check class balance
+# ===============================
+fraud_count = df["Class"].value_counts()
+fraud_rate = 100 * fraud_count / df.shape[0]
+
+fraud_data = pd.concat([fraud_count, fraud_rate], axis=1).reset_index()
+fraud_data.columns = ['Class', 'Count', 'Percentage']
+print("\nClass Distribution:")
+print(fraud_data)
+
+# ===============================
+# 3. Handle imbalance (undersampling)
+# ===============================
+df_fraud = df[df['Class'] == 1]
+df_not_fraud = df[df['Class'] == 0]
+
+df_not_fraud_sampled = df_not_fraud.sample(df_fraud.shape[0], replace=False, random_state=101)
+df_balanced = pd.concat([df_not_fraud_sampled, df_fraud], axis=0)\
+                 .sample(frac=1, random_state=101)\
+                 .reset_index(drop=True)
+
+print("\nBalanced Data Shape:", df_balanced.shape)
+
+# ===============================
+# 4. Train-test split
+# ===============================
+X = df_balanced.drop('Class', axis=1)
+y = df_balanced['Class']
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=101
+)
+
+print(f"""
+X_train: {X_train.shape}
+X_test: {X_test.shape}
+y_train: {y_train.shape}
+y_test: {y_test.shape}
+""")
+
+# ===============================
+# 5. Random Forest pipeline
+# ===============================
+random_forest_model = Pipeline([
+    ('scaler', StandardScaler()),
+    ('classifier', RandomForestClassifier(random_state=101))
+])
+
+random_forest_model.fit(X_train, y_train)
+
+# ===============================
+# 6. Prediction
+# ===============================
+y_pred = random_forest_model.predict(X_test)
+
+# ===============================
+# 7. Classification report
+# ===============================
+cr = classification_report(y_test, y_pred)
+print("\nClassification Report:\n", cr)
+
+# ===============================
+# 8. Save the model
+# ===============================
+with open('./model.pkl', 'wb') as fp:
+    pickle.dump(random_forest_model, fp)
+
