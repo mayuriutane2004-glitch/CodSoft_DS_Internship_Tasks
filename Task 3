@@ -1,0 +1,79 @@
+# Imports
+import pickle
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, confusion_matrix
+
+# Calling the dataset
+df = pd.read_csv('./IRIS.CSV')
+
+# Display first few rows
+print(df.head())
+
+# Dimensions
+print(f"No of rows: {df.shape[0]}")
+print(f"No of columns: {df.shape[1]}")
+
+# Checking for imbalance
+print(df['species'].value_counts())
+
+# Distributions of the variables
+df1 = df.drop('species', axis=1).melt(var_name='Variable', value_name='Value')
+sns.boxplot(data=df1, x='Variable', y='Value')
+plt.xlabel('Measurement')
+plt.ylabel('Value')
+plt.title('Distribution of Measurements')
+plt.show()
+
+# Forming X and Y
+X = df.drop('species', axis=1)
+y = df['species']
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=101, stratify=y
+)
+
+print(f"""X Train: {X_train.shape}
+X Test: {X_test.shape}
+Y Train: {y_train.shape}
+Y Test: {y_test.shape}""")
+
+# Scaling
+preprocess = Pipeline([
+    ('scaler', StandardScaler())
+])
+
+# Model pipeline
+model = Pipeline([
+    ('preprocess', preprocess),
+    ('classifier', LogisticRegression(multi_class='multinomial', solver='lbfgs', max_iter=200))
+])
+
+# Fit the model
+model.fit(X_train, y_train)
+
+# Prediction
+y_pred = model.predict(X_test)
+
+# Confusion matrix
+cm = confusion_matrix(y_test, y_pred)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+plt.xlabel('Actual Label')
+plt.ylabel('Predicted Label')
+plt.title('Confusion Matrix for Classification')
+plt.show()
+
+# Classification report
+cr = classification_report(y_test, y_pred)
+print(cr)
+
+# Saving the model
+with open('./model.pkl', 'wb') as fp:
+    pickle.dump(model, fp)
